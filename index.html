@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="de"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Aus dem Nichts — Editor für alles</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-touch-callout:none;font-family:"Segoe UI",system-ui,sans-serif}
+  input,textarea{-webkit-user-select:text;user-select:text}   /* Eingabefelder bleiben selektierbar */
+  html,body{margin:0;height:100%;background:#10151e;color:#e7eef7;overflow:hidden}
+  #app{display:flex;flex-direction:column;height:100%}
+  #top{flex:0 0 auto;display:flex;gap:6px;align-items:center;padding:7px 9px;background:#161d28;border-bottom:1px solid #28333f;flex-wrap:wrap;z-index:40}
+  #body{flex:1;display:flex;min-height:0;position:relative}
+  #side{width:212px;flex:0 0 auto;background:#141b25;border-right:1px solid #28333f;display:flex;flex-direction:column;min-height:0}
+  #catlabel{font-size:10.5px;font-weight:800;color:#9fb2cc;letter-spacing:.5px;text-transform:uppercase;padding:8px 8px 3px}
+  #catbar{display:flex;flex-wrap:wrap;gap:5px;padding:2px 7px 8px;border-bottom:1px solid #232d39;max-height:142px;overflow-y:auto}
+  .catbtn{font-size:12.5px;font-weight:700;padding:7px 11px;border-radius:16px;background:#1c2735;border:1px solid #3a4a5e;color:#cdd9e8;cursor:pointer}
+  .catbtn.on{background:#2f6df0;border-color:#7ab4ff;color:#fff;box-shadow:0 0 0 2px rgba(90,160,255,.30)}
+  #search{margin:6px;padding:7px 9px;border-radius:8px;border:1px solid #38465a;background:#0d1219;color:#e7eef7;font-size:13px}
+  #pal{flex:1;overflow-y:auto;padding:7px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;align-content:start}
+  .pt{width:100%;aspect-ratio:1;background:#0c1118 center/contain no-repeat;border:2px solid #2b3744;border-radius:7px;cursor:pointer;image-rendering:pixelated}
+  .pt.sel{border-color:#5aa0ff;box-shadow:0 0 0 2px rgba(90,160,255,.35)}
+  #main{flex:1;position:relative;overflow:hidden;background:#0b0f16;min-width:0}
+  #cv{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;touch-action:none}
+  #tools{position:absolute;top:8px;left:8px;right:8px;display:flex;gap:5px;flex-wrap:wrap;pointer-events:none}
+  #tools>*{pointer-events:auto}
+  button,select{background:#222d3a;color:#e7eef7;border:1px solid #38465a;border-radius:8px;padding:7px 10px;font-weight:700;font-size:12.5px;cursor:pointer}
+  button.on{background:#2f6df0;border-color:#5aa0ff}
+  button:active{transform:scale(.97)} button:disabled{opacity:.4}
+  .spacer{flex:1}
+  #send{background:#2f6df0;border-color:#7ab4ff}
+  #modetabs{display:inline-flex;gap:0;background:#0e141d;border:1px solid #2b3744;border-radius:10px;padding:3px}
+  #modetabs .tab{border:0;background:transparent;border-radius:8px;padding:7px 12px;font-size:13.5px}
+  #modetabs .tab.on{background:#2f6df0}
+  #menu{position:absolute;top:48px;right:9px;background:#161d28;border:1px solid #3a4a5e;border-radius:12px;padding:8px;display:none;flex-direction:column;gap:6px;z-index:60;min-width:210px;box-shadow:0 12px 32px rgba(0,0,0,.55)}
+  #menu.show{display:flex}
+  #menu button{width:100%;text-align:left;background:#1c2735}
+  .grp{display:inline-flex;flex-direction:column;gap:4px;padding:5px 7px 6px;border:1px solid #2b3744;border-radius:11px;background:rgba(18,25,34,.82)}
+  .grp>.gl{font-size:8.5px;font-weight:800;letter-spacing:.5px;color:#8093ab;text-transform:uppercase;padding:3px 4px 4px;cursor:move;touch-action:none;border-radius:5px;user-select:none}
+  .grp>.gl:active{background:#223047;color:#cfe0ff}
+  .grp>.gr{display:flex;gap:4px;flex-wrap:wrap}
+  .sep{width:1px;height:22px;background:#33414f;margin:0 2px}
+  #hint{position:absolute;bottom:7px;left:8px;font-size:11px;color:#8ea3bd;background:rgba(11,15,22,.72);padding:4px 9px;border-radius:8px;max-width:70%}
+  #mkbadge{position:absolute;bottom:7px;right:8px;font-size:12px;font-weight:800;color:#cfe0ff;background:rgba(47,109,240,.85);padding:5px 11px;border-radius:9px;display:none;z-index:22}
+  #mkbadge.show{display:block}
+  #toast{position:fixed;left:50%;bottom:54px;transform:translateX(-50%) translateY(20px);background:#1f2c3e;color:#eaf2ff;border:1px solid #3a587f;padding:10px 16px;border-radius:12px;font-size:13.5px;font-weight:600;max-width:88vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:80;box-shadow:0 8px 26px rgba(0,0,0,.5)}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #ovl{position:fixed;inset:0;background:rgba(5,8,12,.86);display:none;align-items:center;justify-content:center;z-index:90;padding:16px}
+  #ovl.show{display:flex}
+  #ovlbox{background:#141b25;border:1px solid #38465a;border-radius:14px;padding:14px;max-width:94vw;max-height:90vh;overflow:auto;text-align:center}
+  #ovlmsg{font-size:13.5px;color:#cfe0ff;margin-bottom:10px;line-height:1.4}
+  #ovlbody img{max-width:86vw;max-height:62vh;image-rendering:pixelated;border:1px solid #2b3744;border-radius:8px}
+  #ovlbody textarea{width:min(86vw,560px);height:38vh;background:#0d1219;color:#cde;border:1px solid #38465a;border-radius:8px;font-family:monospace;font-size:11px;padding:8px}
+  #ovlbtns{margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+  #cathd{font-size:10px;font-weight:800;color:#8093ab;letter-spacing:.4px;padding:2px 6px;text-transform:uppercase}
+  #insp{position:absolute;right:8px;top:46px;width:180px;background:rgba(16,22,33,.96);border:1px solid #38465a;border-radius:10px;padding:9px;font-size:12.5px;display:none}
+  #insp.show{display:block} #insp label{display:block;margin:5px 0 2px;color:#9fb2cc}
+  #insp input{width:100%;padding:5px;border-radius:6px;border:1px solid #38465a;background:#0d1219;color:#fff}
+  #layers{position:absolute;right:8px;top:64px;width:178px;max-height:62%;overflow-y:auto;background:rgba(16,22,33,.97);border:1px solid #38465a;border-radius:10px;padding:7px;display:none;z-index:25}
+  #layers.show{display:block}
+  #layers .lh{font-size:10px;font-weight:800;color:#8093ab;text-transform:uppercase;letter-spacing:.4px;padding:1px 2px 6px}
+  .lrow{display:flex;align-items:center;gap:4px;padding:3px;border-radius:7px;margin-bottom:3px;background:#0e141d;border:1px solid #202a36}
+  .lrow.sel{border-color:#5aa0ff;background:#16263c}
+  .lrow .th{width:30px;height:30px;flex:0 0 auto;background:#0a0e14 center/contain no-repeat;border-radius:5px;image-rendering:pixelated}
+  .lrow .nm{flex:1;font-size:11px;color:#cdd9e8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+  .lrow button{padding:3px 5px;font-size:11px;border-radius:5px}
+  #palToggle{display:none}
+  @media(max-width:780px){
+    #side{position:absolute;z-index:79;height:100%;left:0;top:0;width:80vw;max-width:320px;transform:translateX(-102%);transition:transform .2s;box-shadow:6px 0 22px rgba(0,0,0,.5)}
+    #side.open{transform:translateX(0)} #palToggle{display:inline-flex}
+    button{padding:8px 10px;font-size:12.5px;white-space:nowrap}
+    #top{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;gap:6px;padding:7px 6px;-webkit-overflow-scrolling:touch}
+    #top .sep{display:none}
+    #modetabs{flex:0 0 auto} #modetabs .lbl,#palToggle .lbl{display:none}
+    /* Werkzeuge als unteres DOCK mit umbrechenden, beschrifteten Gruppen */
+    #tools{top:auto;bottom:8px;left:6px;right:6px;display:flex;flex-wrap:wrap;gap:6px;align-content:flex-end;justify-content:center;
+      max-height:46vh;overflow-y:auto;overflow-x:hidden;pointer-events:none;padding:0;touch-action:auto}
+    #tools>*{pointer-events:auto}
+    .grp{background:rgba(13,18,26,.95)}
+    #hint{display:none}
+    #mkbadge{top:54px;bottom:auto;left:50%;right:auto;transform:translateX(-50%)}
+    #menu{top:54px} #layers{top:56px;max-height:48%} #insp{top:56px;right:6px}
+  }
+</style></head>
+<body>
+<div id="app">
+  <div id="top">
+    <button id="palToggle" class="hbtn">🧩 <span class="lbl">Teile</span></button>
+    <div id="modetabs">
+      <button class="tab on" data-mode="map">🗺️<span class="lbl"> Karte</span></button>
+      <button class="tab" data-mode="composite">🧱<span class="lbl"> Teil</span></button>
+    </div>
+    <button id="export">📦 <span class="lbl">Export</span></button>
+    <div class="spacer"></div>
+    <button id="undo" class="hbtn">↶</button><button id="redo" class="hbtn">↷</button>
+    <button id="menuBtn" class="hbtn">⋯</button>
+    <input id="file" type="file" accept="application/json" style="display:none">
+  </div>
+  <div id="menu">
+    <button id="exPng">🖼️ Als PNG speichern</button>
+    <button id="exJson">💾 Daten (JSON) speichern</button>
+    <button id="imp">📂 Daten laden</button>
+    <button id="dorftpl">🏘 Dorf-Vorlage (Rasen-Fläche)</button>
+    <div style="display:flex;gap:5px"><button id="islS" style="flex:1">🏝 Insel klein</button><button id="islM" style="flex:1">mittel</button><button id="islL" style="flex:1">groß</button></div>
+    <button id="clr">🗑️ Aktuellen Modus leeren</button>
+    <button id="resetbars">↺ Werkzeug-Leisten zurücksetzen</button>
+    <button id="help">❓ Hilfe / Anleitung</button>
+  </div>
+  <div id="body">
+    <div id="side">
+      <div id="catlabel">▾ Kategorie — tippen zum Wechseln</div>
+      <div id="catbar"></div>
+      <input id="search" placeholder="Teile suchen…">
+      <div id="pal"></div>
+    </div>
+    <div id="main">
+      <canvas id="cv"></canvas>
+      <div id="tools"></div>
+      <div id="insp"></div>
+      <div id="layers"></div>
+      <div id="mkbadge"></div>
+      <div id="hint"></div>
+      <input id="refFile" type="file" accept="image/*" style="display:none">
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="ovl"><div id="ovlbox"><div id="ovlmsg"></div><div id="ovlbody"></div><div id="ovlbtns"><button id="ovlclose">Schließen</button></div></div></div>
+<script>
+const TILE=64;
+const FINE=16;   // feineres Snap-Raster fuer Objekte/Einheiten (1/4 Tile) — flexibleres Verteilen
+const snapF=v=>Math.round(v/FINE)*FINE;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), dpr=Math.min(2,window.devicePixelRatio||1);
+let mode='map', zoom=0.6, ox=60, oy=70;
+const IMG={};   // file -> Image
+let MANIFEST={}, MANIFEST_OK=false, TMS=[], TMTILES=[];   // 5 Farb-Tilemaps + sliced tiles
+const TM_LABELS=['Grün','Wiese hell','Herbst','Sand','Schnee'];
+let sel=null;   // selected palette item: {kind:'tile'|'sprite', ...}
+let tool='paint', mapLayer='ground', autoTerr='flat', autoColor=0;
+let markMode=false;   // Bau-Version (mid:7630): 1-Finger=navigieren; HALTEN→Markier-Modus; markieren→Tile wählen→„Setzen". Persistiert bis Setzen/Leeren.
+function setMark(on){ markMode=!!on; try{buildTools();setHint();draw();}catch(e){} }
+let eraseR=40, refImg=null, refOpacity=0.45, showLayers=false, lastEraseXY=null, tileColorSet=0;
+
+// ---------- Map data ----------
+const MAPW=60, MAPH=42;
+const ground=Array.from({length:MAPH},()=>Array(MAPW).fill(null));   // Basis-Tile-Ebene (tileKey | null)
+const gover =Array.from({length:MAPH},()=>Array(MAPW).fill(null));   // Aufbau-Tile-Ebene (über Boden, Transparenz zeigt Boden)
+function tileArr(){ return mapLayer==='over'?gover:ground; }
+let objects=[];   // {file,x,y,w,h}  (x=Mitte, y=Fuss in Welt-Pixeln, feines Raster)
+let units=[];     // {file,x,y,w,h,count,name}  (x=Mitte, y=Fuss, feines Raster)
+// ---------- Composite / UI data ----------
+let parts=[];     // composite: {file,x,y,scale,flip,w,h}
+let uiel=[];      // ui: {file,x,y,w,h,scale,flip}
+let selObj=null;  // currently selected free object (composite/ui)
+// ---------- selection (free marking) ----------
+const marked=new Set();   // "c,r"
+// ---------- undo ----------
+let undoStack=[], redoStack=[];
+function snapshot(){ return JSON.stringify({ground,gover,objects,units,parts,uiel}); }
+function pushUndo(){ undoStack.push(snapshot()); if(undoStack.length>80)undoStack.shift(); redoStack.length=0; }
+function restore(s){ const d=JSON.parse(s); for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ground[r][c]=(d.ground[r]&&d.ground[r][c])||null; gover[r][c]=(d.gover&&d.gover[r]&&d.gover[r][c])||null;}
+  objects=d.objects||[]; units=d.units||[]; parts=d.parts||[]; uiel=d.uiel||[]; selObj=null; }
+function undo(){ if(!undoStack.length)return; redoStack.push(snapshot()); restore(undoStack.pop()); }
+function redo(){ if(!redoStack.length)return; undoStack.push(snapshot()); restore(redoStack.pop()); }
+
+const $=id=>document.getElementById(id);
+function loadImg(file){ if(IMG[file])return IMG[file]; const i=new Image(); i.src=file+'?v=1'; IMG[file]=i; return i; }
+
+async function boot(){
+  try{ MANIFEST=await (await fetch('ts/ed/manifest.json?v=1')).json(); MANIFEST_OK=Object.keys(MANIFEST).length>0; }catch(e){ MANIFEST={}; MANIFEST_OK=false; }
+  // 5 Farb-Tilemaps laden (Fallback: tilemap.png als Farbe 0)
+  TMS=[]; for(let i=1;i<=5;i++){ const im=new Image(); im.src='ts/ed/tm'+i+'.png?v=2'; TMS.push(im); }
+  await Promise.all(TMS.map(im=>new Promise(r=>{im.onload=r;im.onerror=r;})));
+  if(!TMS[0].naturalWidth){ const im=new Image(); im.src='ts/ed/tilemap.png?v=1'; await new Promise(r=>{im.onload=r;im.onerror=r;}); TMS=[im]; }
+  sliceTilemap();
+  for(const c in MANIFEST) for(const a of MANIFEST[c]) loadImg(a.file);
+  buildCats(); buildPalette(); buildTools(); resize(); setHint();
+  requestAnimationFrame(draw);
+}
+function sliceTilemap(){ TMTILES=[]; const TM=TMS[0]; const cols=Math.round((TM.naturalWidth||576)/TILE)||9, rows=Math.round((TM.naturalHeight||384)/TILE)||6;
+  for(let s=0;s<TMS.length;s++) for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(c===4)continue;   // Spalte 4 leer
+    TMTILES.push({key:'t'+s+'_'+c+'_'+r, s, c, r}); } }
+
+// ---------- Kategorien + Palette ----------
+let activeCat='Tiles';
+const catLabel=c=>c==='Tiles'?'⬛ Tiles':c==='Enemy Pack'?'Gegner':c==='Spiel-Gebäude'?'🏰 Spiel-Gebäude':c;
+function buildCats(){ const bar=$('catbar'); bar.innerHTML='';
+  const cats=['Tiles', ...Object.keys(MANIFEST).filter(c=>c!=='UI')];   // Bau-Version: kein UI-Kram (mid:7619)
+  for(const c of cats){ const b=document.createElement('button'); b.className='catbtn'; b.textContent=catLabel(c);
+    if(c===activeCat)b.classList.add('on'); b.onclick=()=>{ activeCat=c; buildCats(); buildPalette(); if(window.innerWidth>780) $('pal').scrollTop=0; }; bar.appendChild(b); } }
+function hd(txt){ const h=document.createElement('div'); h.id='cathd'; h.textContent=txt; h.style.gridColumn='1/-1'; return h; }
+function buildPalette(){ const pal=$('pal'); pal.innerHTML=''; const q=($('search').value||'').toLowerCase();
+  if(activeCat==='Tiles'){ // Boden: oben Farb-Set-Wähler, darunter nur das gewählte Set
+    if(tileColorSet>=TMS.length) tileColorSet=0;
+    const picker=document.createElement('div'); picker.style.cssText='grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px';
+    for(let s=0;s<TMS.length;s++){ const cb=document.createElement('button'); cb.textContent=(TM_LABELS[s]||('Farbe '+(s+1))); cb.className='catbtn'+(s===tileColorSet?' on':''); cb.style.fontSize='11px';
+      cb.onclick=()=>{ tileColorSet=s; autoColor=s; buildPalette(); }; picker.appendChild(cb); }
+    pal.appendChild(picker);
+    for(const t of TMTILES){ if(t.s!==tileColorSet) continue;
+      const b=document.createElement('div'); b.className='pt';
+      const c=document.createElement('canvas'); c.width=TILE;c.height=TILE; const im=TMS[t.s]; if(im&&im.naturalWidth) c.getContext('2d').drawImage(im,t.c*TILE,t.r*TILE,TILE,TILE,0,0,TILE,TILE);
+      b.style.backgroundImage='url('+c.toDataURL()+')'; b.onclick=()=>pick({kind:'tile',key:t.key,s:t.s,c:t.c,r:t.r},b);
+      b._sel=()=>sel&&sel.kind==='tile'&&sel.key===t.key; pal.appendChild(b); }
+    return; }
+  if(!MANIFEST_OK){ const w=document.createElement('div'); w.style.cssText='grid-column:1/-1;color:#ff9b6b;font-size:12px;padding:8px;line-height:1.4'; w.textContent='⚠ Teile-Manifest nicht geladen. Seite neu laden (Cache leeren). Wenn es bleibt: melde mir den Fehler.'; $('pal').appendChild(w); return; }
+  const list=(MANIFEST[activeCat]||[]).filter(a=>!q||a.name.toLowerCase().includes(q));
+  for(const a of list){ const b=document.createElement('div'); b.className='pt'; b.title=a.name;
+    b.style.backgroundImage='url('+a.file+'?v=1)'; b.onclick=()=>pick({kind:'sprite',file:a.file,w:a.w,h:a.h,name:a.name},b);
+    b._sel=()=>sel&&sel.kind==='sprite'&&sel.file===a.file; pal.appendChild(b); }
+}
+function pick(it,b){ sel=it; if(it.kind==='tile'&&it.s!=null) autoColor=it.s; for(const el of document.querySelectorAll('.pt')) el.classList.toggle('sel', el._sel&&el._sel());
+  if(window.innerWidth<=780) $('side').classList.remove('open'); }
+$('search').oninput=buildPalette;
+
+// ---------- Tools je Modus (gruppiert + beschriftet, frei verschiebbar) ----------
+let dragG=null, grpPos=(()=>{ try{ const v=JSON.parse(localStorage.getItem('ed_grppos')||'{}'); return (v&&typeof v==='object')?v:{}; }catch(e){ try{localStorage.removeItem('ed_grppos');}catch(_){}; return {}; } })();   // korrupter Wert darf den Editor nicht killen (Audit M14)
+function startGrpDrag(d,key,e){ e.preventDefault(); e.stopPropagation(); const r=d.getBoundingClientRect(); dragG={d,key,dx:e.clientX-r.left,dy:e.clientY-r.top}; }
+document.addEventListener('pointermove',e=>{ if(!dragG)return; let x=Math.max(2,Math.min(window.innerWidth-50,e.clientX-dragG.dx)), y=Math.max(44,Math.min(window.innerHeight-34,e.clientY-dragG.dy));
+  const d=dragG.d; d.style.position='fixed'; d.style.left=x+'px'; d.style.top=y+'px'; d.style.right='auto'; d.style.bottom='auto'; d.style.zIndex=70; grpPos[dragG.key]={x,y}; });
+document.addEventListener('pointerup',()=>{ if(dragG){ localStorage.setItem('ed_grppos',JSON.stringify(grpPos)); dragG=null; } });
+document.addEventListener('pointercancel',()=>{ dragG=null; });
+function resetGrpPos(){ grpPos={}; localStorage.removeItem('ed_grppos'); buildTools(); toast('Leisten zurückgesetzt'); }
+function grp(label){ const d=document.createElement('div'); d.className='grp'; d.dataset.gk=label;
+  const gl=document.createElement('div'); gl.className='gl'; gl.textContent='⠿ '+label; gl.title='Ziehen zum Verschieben';
+  gl.addEventListener('pointerdown',e=>startGrpDrag(d,label,e));
+  const gr=document.createElement('div'); gr.className='gr'; d.appendChild(gl); d.appendChild(gr); d._row=gr;
+  if(grpPos[label]){ d.style.position='fixed'; d.style.left=grpPos[label].x+'px'; d.style.top=grpPos[label].y+'px'; d.style.zIndex=70; }
+  return d; }
+function buildTools(){ const t=$('tools'); t.innerHTML='';
+  const mk=(par,id,label,act,on)=>{ const b=document.createElement('button'); b.textContent=label; b.id='tl_'+id; if(on)b.classList.add('on'); b.onclick=act; par.appendChild(b); return b; };
+  if(mode==='map'){
+    const gE=grp('Ebene'); mk(gE._row,'lg','Boden',()=>setLayer('ground'),mapLayer==='ground'); mk(gE._row,'lov','Aufbau',()=>setLayer('over'),mapLayer==='over'); mk(gE._row,'lo','Objekte',()=>setLayer('obj'),mapLayer==='obj'); mk(gE._row,'lu','Einheiten',()=>setLayer('unit'),mapLayer==='unit'); t.appendChild(gE);
+    const gA=grp(markMode?('Markiert: '+marked.size):'Bauen'), hasMark=markMode||marked.size;
+    const setz=mk(gA._row,'fill','✓ Setzen',()=>{ if(!sel){ toast('Erst ein Teil/Tile aus der Palette wählen', 2600); return; } fillMarked('tile'); setMark(false); });
+    setz.style.cssText='background:#2f9e44;border-color:#51cf66;font-size:14px;padding:9px 15px';
+    if(hasMark){ const del=mk(gA._row,'delm','🗑 Löschen',()=>{ deleteMarked(); setMark(false); }); del.style.cssText='background:#a4313a;border-color:#e0573a';
+      mk(gA._row,'copy','📋 Kopieren',()=>copyMarked()); }
+    if(clipboard && hasMark){ const ps=mk(gA._row,'paste','📌 Einfügen',()=>{ pasteMarked(); setMark(false); }); ps.style.cssText='background:#2b5fb0;border-color:#5aa0ff'; }
+    if((mapLayer==='ground'||mapLayer==='over') && hasMark){ mk(gA._row,'fillF','Auto-Rand',()=>{autoTerr='flat';fillMarked('auto');setMark(false);}); }
+    if(hasMark){ mk(gA._row,'clrmark','Leeren',()=>{ marked.clear(); setMark(false); }); }
+    t.appendChild(gA);
+  } else {
+    const gW=grp('Werkzeug'); mk(gW._row,'place','Platzieren',()=>setTool('paint'),tool==='paint'); mk(gW._row,'seltool','Auswählen',()=>setTool('select'),tool==='select'); mk(gW._row,'erase','Radierer',()=>setTool('erase'),tool==='erase');
+    if(tool==='erase'){ mk(gW._row,'esm','－',()=>{eraseR=Math.max(12,eraseR/1.3);}); mk(gW._row,'ebg','＋',()=>{eraseR=Math.min(400,eraseR*1.3);}); } t.appendChild(gW);
+    const gV=grp('Ansicht'); mk(gV._row,'lay','Ebenen',()=>{showLayers=!showLayers;$('layers').classList.toggle('show',showLayers);buildLayers();buildTools();},showLayers); mk(gV._row,'ref','Vorlage',()=>$('refFile').click());
+    if(refImg){ mk(gV._row,'rfm','Vorlage －',()=>{refOpacity=Math.max(0.08,refOpacity-0.12);}); mk(gV._row,'rfp','Vorlage ＋',()=>{refOpacity=Math.min(1,refOpacity+0.12);}); mk(gV._row,'rfx','Vorlage aus',()=>{refImg=null;buildTools();}); } t.appendChild(gV);
+    if(selObj){ const gS=grp('Ausgewähltes Teil'); mk(gS._row,'fwd','⬆',()=>{zorder(1);buildLayers();}); mk(gS._row,'back','⬇',()=>{zorder(-1);buildLayers();}); mk(gS._row,'flip','↔',()=>{pushUndo();selObj.flip=!selObj.flip;}); mk(gS._row,'rotl','↺',()=>{pushUndo();selObj.rot=((selObj.rot||0)-15);}); mk(gS._row,'rotr','↻',()=>{pushUndo();selObj.rot=((selObj.rot||0)+15);}); mk(gS._row,'big','＋',()=>{pushUndo();selObj.scale*=1.12;}); mk(gS._row,'sml','－',()=>{pushUndo();selObj.scale/=1.12;}); mk(gS._row,'dup','Kopie',()=>dupObj()); mk(gS._row,'del','Löschen',()=>{delObj();buildLayers();}); t.appendChild(gS); }
+  }
+}
+function buildLayers(){ const p=$('layers'); if(!p.classList.contains('show')){return;} p.innerHTML=''; const L=freeList();
+  const h=document.createElement('div'); h.className='lh'; h.textContent='Ebenen (oben = vorne) · '+L.length; p.appendChild(h);
+  for(let i=L.length-1;i>=0;i--){ const o=L[i], row=document.createElement('div'); row.className='lrow'+(o===selObj?' sel':'');
+    const th=document.createElement('div'); th.className='th'; th.style.backgroundImage='url('+o.file+'?v=1)'; if(o.hidden)th.style.opacity=.3; row.appendChild(th);
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=(o.file.split('/').pop()||'').replace(/\.png$/,'').replace(/_/g,' '); row.appendChild(nm);
+    const eye=document.createElement('button'); eye.textContent=o.hidden?'🙈':'👁'; eye.onclick=e=>{e.stopPropagation();o.hidden=!o.hidden;buildLayers();}; row.appendChild(eye);
+    const up=document.createElement('button'); up.textContent='⬆'; up.onclick=e=>{e.stopPropagation();selObj=o;zorder(1);buildLayers();}; row.appendChild(up);
+    const dn=document.createElement('button'); dn.textContent='⬇'; dn.onclick=e=>{e.stopPropagation();selObj=o;zorder(-1);buildLayers();}; row.appendChild(dn);
+    const dl=document.createElement('button'); dl.textContent='🗑'; dl.onclick=e=>{e.stopPropagation();selObj=o;delObj();buildLayers();}; row.appendChild(dl);
+    row.onclick=()=>{ selObj=o; buildTools(); buildLayers(); }; p.appendChild(row); }
+}
+function sepEl(){ const d=document.createElement('div'); d.className='sep'; return d; }
+function setLayer(l){ mapLayer=l; buildTools(); }
+function setTool(t){ tool=t; buildTools(); }
+function setHint(){ $('hint').textContent = mode==='map'
+  ? 'Tippen=setzen · halten+ziehen=verschieben · 2-Finger/Rad=zoom · ⬚ Markieren=Zellen malen · ▭ Rechteck=Bereich aufziehen → dann „Füllen/Auto-Ecken"'
+  : 'Teil wählen + tippen=platzieren · ▭ Auswählen: tippen=packen, ziehen=bewegen → ↻drehen ＋－ ⧉Kopie · 🧽 Radierer (Größe ＋/－) · 🗂 Ebenen · 📷 Vorlage zum Nachbauen'; }
+
+// ---------- Render ----------
+function resize(){ cv.width=Math.round(cv.clientWidth*dpr); cv.height=Math.round(cv.clientHeight*dpr); }
+window.addEventListener('resize',resize);
+function draw(){
+  if(cv.width!==Math.round(cv.clientWidth*dpr)||cv.height!==Math.round(cv.clientHeight*dpr)) resize();
+  ctx.setTransform(1,0,0,1,0,0); ctx.imageSmoothingEnabled=false; ctx.fillStyle='#0b0f16'; ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(zoom*dpr,0,0,zoom*dpr,ox*dpr,oy*dpr);
+  if(mode==='map') drawMap(); else drawFree();
+  const mc=mode==='map'?marked.size:0; if(mc!==draw._mc){ draw._mc=mc; const bg=$('mkbadge'); bg.textContent=mc?('▦ '+mc+' markiert — jetzt füllen'):''; bg.classList.toggle('show',!!mc); }
+  requestAnimationFrame(draw);
+}
+function tmDraw(key,x,y){ const p=key.split('_'); const im=TMS[+p[0].slice(1)]||TMS[0]; if(im&&im.naturalWidth) ctx.drawImage(im, +p[1]*TILE, +p[2]*TILE, TILE,TILE, x,y,TILE,TILE); }
+function drawMap(){
+  ctx.fillStyle='#2f7d8c'; ctx.fillRect(0,0,MAPW*TILE,MAPH*TILE);
+  for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ const k=ground[r][c]; if(k) tmDraw(k,c*TILE,r*TILE); }
+  for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ const k=gover[r][c]; if(k) tmDraw(k,c*TILE,r*TILE); }   // Aufbau-Ebene über Boden
+  for(const o of objects){ const im=IMG[o.file]; if(im&&im.complete&&im.naturalWidth) ctx.drawImage(im,o.x-o.w/2,o.y-o.h,o.w,o.h); }
+  for(const u of units){ const im=IMG[u.file]; if(im&&im.complete&&im.naturalWidth) ctx.drawImage(im,u.x-u.w/2,u.y-u.h,u.w,u.h);
+    if(u.count>1){ ctx.fillStyle='#ffd56b'; ctx.font='bold 22px sans-serif'; ctx.fillText('x'+u.count,u.x+u.w/2-6,u.y-2); } }
+  // Gitter: feineres Raster auf Objekt-/Einheiten-Ebene, sonst 64er
+  const fine=(mapLayer==='obj'||mapLayer==='unit');
+  if(fine){ ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1/zoom;
+    for(let x=0;x<=MAPW*TILE;x+=FINE){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,MAPH*TILE);ctx.stroke();}
+    for(let y=0;y<=MAPH*TILE;y+=FINE){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(MAPW*TILE,y);ctx.stroke();} }
+  ctx.strokeStyle='rgba(255,255,255,.07)'; ctx.lineWidth=1/zoom;
+  for(let c=0;c<=MAPW;c++){ctx.beginPath();ctx.moveTo(c*TILE,0);ctx.lineTo(c*TILE,MAPH*TILE);ctx.stroke();}
+  for(let r=0;r<=MAPH;r++){ctx.beginPath();ctx.moveTo(0,r*TILE);ctx.lineTo(MAPW*TILE,r*TILE);ctx.stroke();}
+  // Markierung
+  if(marked.size){ ctx.fillStyle='rgba(90,160,255,.30)'; ctx.strokeStyle='#5aa0ff'; ctx.lineWidth=2/zoom;
+    for(const k of marked){ const [c,r]=k.split(',').map(Number); ctx.fillRect(c*TILE,r*TILE,TILE,TILE); ctx.strokeRect(c*TILE+1,r*TILE+1,TILE-2,TILE-2); } }
+  if(rectSel){ const {a,b,c,d}=rectBounds(); ctx.fillStyle='rgba(122,200,120,.25)'; ctx.strokeStyle='#7ac878'; ctx.lineWidth=2/zoom;
+    ctx.fillRect(a*TILE,c*TILE,(b-a+1)*TILE,(d-c+1)*TILE); ctx.strokeRect(a*TILE,c*TILE,(b-a+1)*TILE,(d-c+1)*TILE); }
+}
+function freeList(){ return mode==='composite'?parts:uiel; }
+function objAABB(o){ const w=o.w*o.scale, h=o.h*o.scale; if(!o.rot){ return {minx:o.x-w/2,miny:o.y-h/2,maxx:o.x+w/2,maxy:o.y+h/2}; }
+  const a=o.rot*Math.PI/180, co=Math.cos(a), si=Math.sin(a), cx=[-w/2,w/2,w/2,-w/2], cy=[-h/2,-h/2,h/2,h/2];
+  let mnx=1e9,mny=1e9,mxx=-1e9,mxy=-1e9;
+  for(let i=0;i<4;i++){ const x=o.x+cx[i]*co-cy[i]*si, y=o.y+cx[i]*si+cy[i]*co; mnx=Math.min(mnx,x);mny=Math.min(mny,y);mxx=Math.max(mxx,x);mxy=Math.max(mxy,y);}
+  return {minx:mnx,miny:mny,maxx:mxx,maxy:mxy}; }
+function drawOne(g,o,offx,offy){ const im=IMG[o.file]; if(!im||!im.complete||!im.naturalWidth)return;
+  const w=o.w*o.scale, h=o.h*o.scale; g.save(); g.translate(o.x-(offx||0),o.y-(offy||0)); if(o.rot)g.rotate(o.rot*Math.PI/180); if(o.flip)g.scale(-1,1); g.globalAlpha=o.alpha==null?1:o.alpha; g.drawImage(im,-w/2,-h/2,w,h); g.restore(); }
+function drawFree(){
+  const C=32; ctx.fillStyle='#11161e'; ctx.fillRect(-2000,-2000,8000,8000);
+  ctx.fillStyle='#171d27'; for(let y=-2000;y<4000;y+=C)for(let x=-2000;x<4000;x+=C) if(((x/C+y/C)&1)===0) ctx.fillRect(x,y,C,C);
+  if(refImg&&refImg.naturalWidth){ const s=Math.min(700/refImg.naturalWidth,700/refImg.naturalHeight), w=refImg.naturalWidth*s, h=refImg.naturalHeight*s;
+    ctx.save(); ctx.globalAlpha=refOpacity; ctx.drawImage(refImg,-w/2,-h/2,w,h); ctx.restore(); }
+  for(const o of freeList()){ if(o.hidden)continue; drawOne(ctx,o);
+    if(o===selObj){ const bb=objAABB(o); ctx.strokeStyle='#5aa0ff'; ctx.lineWidth=2/zoom; ctx.strokeRect(bb.minx,bb.miny,bb.maxx-bb.minx,bb.maxy-bb.miny); } }
+  if(tool==='erase'&&lastEraseXY){ ctx.strokeStyle='#ff7a6b'; ctx.lineWidth=2/zoom; ctx.beginPath(); ctx.arc(lastEraseXY.x,lastEraseXY.y,eraseR,0,7); ctx.stroke(); }
+}
+
+// ---------- Autotile (3x3-Block: offene Kante → Rand/Eck-Tile) ----------
+function autotileKey(c,r,inSel){ const base = autoTerr==='elev'?{c:5,r:0}:{c:0,r:0};
+  const n=!inSel(c,r-1), s=!inSel(c,r+1), w=!inSel(c-1,r), e=!inSel(c+1,r);
+  const cx = w?0 : e?2 : 1, cy = n?0 : s?2 : 1;
+  return 't'+autoColor+'_'+(base.c+cx)+'_'+(base.r+cy); }
+
+// ---------- Eingabe ----------
+function cell(cx,cy){ const b=cv.getBoundingClientRect(); return {c:Math.floor((cx-b.left-ox)/zoom/TILE), r:Math.floor((cy-b.top-oy)/zoom/TILE)}; }
+function world(cx,cy){ const b=cv.getBoundingClientRect(); return {x:(cx-b.left-ox)/zoom, y:(cy-b.top-oy)/zoom}; }
+const ptrs=new Map(); let down=null, pinchD=0, pinchM=null, dragObj=null, didChange=false, rectSel=null;
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size>=2){ down=null; const p=[...ptrs.values()]; pinchD=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); pinchM={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}; return; }
+  down={id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false}; didChange=false;
+  if(mode==='map' && !markMode){ down._holdT=setTimeout(()=>{ if(down && !down.moved){ setMark(true); if(navigator.vibrate)navigator.vibrate(25); toast('Markier-Modus — Zellen antippen/ziehen, dann „Setzen"', 2200); } }, 320); }   // HALTEN → Markier-Modus (mid:7630)
+  if(mode!=='map'&&tool==='select'){ const o=hitFree(e.clientX,e.clientY); selObj=o; buildTools(); buildLayers(); if(o){ const w=world(e.clientX,e.clientY); dragObj={o,dx:o.x-w.x,dy:o.y-w.y}; } }
+  if(mode!=='map'&&tool==='erase'){ lastEraseXY=world(e.clientX,e.clientY); }
+});
+cv.addEventListener('pointermove',e=>{ if(ptrs.has(e.pointerId)) ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(ptrs.size>=2){ const p=[...ptrs.values()], d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y), m={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}, b=cv.getBoundingClientRect();
+    if(pinchD>0){ const f=d/pinchD, mx=m.x-b.left,my=m.y-b.top; ox=mx-(mx-ox)*f; oy=my-(my-oy)*f; zoom=Math.max(0.1,Math.min(3,zoom*f)); }
+    if(pinchM){ ox+=m.x-pinchM.x; oy+=m.y-pinchM.y; } pinchD=d; pinchM=m; return; }
+  if(!down||e.pointerId!==down.id) return;
+  if(down._holdT && Math.hypot(e.clientX-down.sx,e.clientY-down.sy)>7){ clearTimeout(down._holdT); down._holdT=null; }   // Bewegung = schwenken, löst KEINEN Markier-Modus aus
+  if(dragObj){ const w=world(e.clientX,e.clientY); dragObj.o.x=w.x+dragObj.dx; dragObj.o.y=w.y+dragObj.dy; down.moved=true; return; }
+  if(mode==='map'){
+    if(markMode){ down.moved=true; const {c,r}=cell(e.clientX,e.clientY); if(c>=0&&r>=0&&c<MAPW&&r<MAPH) marked.add(c+','+r); return; }   // Markier-Modus: ziehen markiert Zellen
+    if(!down.moved && Math.hypot(e.clientX-down.sx,e.clientY-down.sy)>7) down.moved=true;
+    if(down.moved){ ox+=e.clientX-down.x; oy+=e.clientY-down.y; }   // 1-Finger ziehen = schwenken (mid:7630)
+    down.x=e.clientX; down.y=e.clientY; return;
+  }
+  if(tool==='erase' && mode!=='map'){ down.moved=true; lastEraseXY=world(e.clientX,e.clientY); eraseFreeAt(e.clientX,e.clientY); return; }
+  if(!down.moved && Math.hypot(e.clientX-down.sx,e.clientY-down.sy)>7) down.moved=true;
+  if(down.moved){ ox+=e.clientX-down.x; oy+=e.clientY-down.y; }   // Teil-Modus: ziehen = schwenken
+  down.x=e.clientX; down.y=e.clientY;
+});
+function endP(e){ ptrs.delete(e.pointerId);
+  if(down&&down._holdT){ clearTimeout(down._holdT); down._holdT=null; }   // Hold-Timer beenden
+  if(down&&e.pointerId===down.id){
+    if(dragObj){ if(down.moved)pushUndo(); dragObj=null; }
+    else if(mode==='map' && !down.moved){ if(markMode){ const {c,r}=cell(down.sx,down.sy); if(c>=0&&r>=0&&c<MAPW&&r<MAPH){ const k=c+','+r; marked.has(k)?marked.delete(k):marked.add(k); } } else { placeSingle(down.sx,down.sy); } }   // Markier-Modus: tippen toggelt Zelle · sonst: EIN Tipp setzt EIN Teil (mid:7645)
+    else if(!down.moved){ tap(down.sx,down.sy); }   // Teil-Modus: tippen platziert
+    down=null;
+  }
+  if(ptrs.size<2){ pinchD=0; pinchM=null; }
+}
+cv.addEventListener('pointerup',endP); cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);down=null;dragObj=null;rectSel=null;pinchD=0;pinchM=null;});
+cv.addEventListener('wheel',e=>{ e.preventDefault(); const f=e.deltaY<0?1.12:1/1.12, b=cv.getBoundingClientRect(), mx=e.clientX-b.left,my=e.clientY-b.top; ox=mx-(mx-ox)*f; oy=my-(my-oy)*f; zoom=Math.max(0.1,Math.min(3,zoom*f)); },{passive:false});
+
+function tap(cx,cy){ if(mode==='map') applyMapAt(cx,cy,true); else if(tool==='erase'){ lastEraseXY=world(cx,cy); eraseFreeAt(cx,cy); } else if(tool==='select'){ /* Auswahl in pointerdown */ } else placeFree(cx,cy); }
+function applyMapAt(cx,cy,isTap){ const {c,r}=cell(cx,cy); if(c<0||r<0||c>=MAPW||r>=MAPH)return;
+  const isTile=(mapLayer==='ground'||mapLayer==='over');
+  if(tool==='pick'){ if(isTile&&tileArr()[r][c]){ sel={kind:'tile',key:tileArr()[r][c]}; } return; }
+  if(tool==='bucket'&&isTile){ if(isTap){ pushUndo(); flood(c,r, sel&&sel.kind==='tile'?sel.key:null); } return; }
+  if(tool==='rect'){ return; } // rect via mark+füllen abgedeckt
+  if(isTile){ const G=tileArr(); if(tool==='erase'){ if(G[r][c]!==null){pushUndo();G[r][c]=null;} } else if(sel&&sel.kind==='tile'){ if(G[r][c]!==sel.key){ if(isTap||!didChange){pushUndo();didChange=true;} G[r][c]=sel.key; } } }
+  else { const arr=mapLayer==='unit'?units:objects; const w=world(cx,cy), ax=snapF(w.x), ay=snapF(w.y);   // feines Pixel-Raster
+    if(tool==='erase'){ let bi=-1,bd=1e9; for(let i=0;i<arr.length;i++){ const d=Math.hypot(arr[i].x-ax,arr[i].y-ay); if(d<bd){bd=d;bi=i;} } if(bi>=0&&bd<TILE*0.8){ pushUndo(); arr.splice(bi,1); } }
+    else if(sel&&sel.kind==='sprite'){ pushUndo(); const sz=Math.min(96, Math.max(44, sel.h)); const o={file:sel.file,x:ax,y:ay,w:sel.w*(sz/sel.h),h:sz};
+      if(mapLayer==='unit'){ o.count=1; o.name=sel.name; units.push(o); } else objects.push(o); } }
+}
+function flood(c,r,key){ const G=tileArr(); const from=G[r][c]; if(from===key)return; const st=[[c,r]];
+  while(st.length){ const [x,y]=st.pop(); if(x<0||y<0||x>=MAPW||y>=MAPH||G[y][x]!==from)continue; G[y][x]=key; st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]); } }
+function fillMarked(kind){ if(!marked.size){ toast('Erst Zellen markieren (Karte gedrückt halten → markieren), dann „Setzen"', 3600); return; }
+  // Deko/Gebäude/Einheiten: ausgewähltes Sprite an jede markierte Zelle setzen (mid:7630)
+  if(mapLayer==='obj'||mapLayer==='unit'){
+    if(!sel||sel.kind!=='sprite'){ toast('Für diese Ebene ein Teil aus der Palette wählen (Deko/Gebäude/Einheit)', 3200); return; }
+    pushUndo(); const sz=Math.min(96,Math.max(44,sel.h));
+    for(const k of marked){ const [c,r]=k.split(',').map(Number); const x=c*TILE+TILE/2, y=r*TILE+TILE/2;
+      const o={file:sel.file,x,y,w:sel.w*(sz/sel.h),h:sz}; if(mapLayer==='unit'){ o.count=1; o.name=sel.name; units.push(o); } else objects.push(o); }
+    marked.clear(); return;
+  }
+  // Boden/Aufbau: Tile in jede markierte Zelle
+  if(kind!=='auto' && (!sel||sel.kind!=='tile')){ toast('Erst ein Boden-Tile aus der Palette wählen', 3000); return; }
+  pushUndo(); const inSel=(c,r)=>marked.has(c+','+r); const G=tileArr();
+  for(const k of marked){ const [c,r]=k.split(',').map(Number);
+    if(kind==='auto'){ G[r][c]=autotileKey(c,r,inSel); }
+    else if(sel&&sel.kind==='tile'){ G[r][c]=sel.key; } }
+  marked.clear();
+}
+function placeSingle(cx,cy){ if(!sel){ toast('Erst ein Teil/Tile aus der Palette wählen (🧩 oben links)', 2800); return; }   // EIN Tipp setzt EIN Teil (mid:7645)
+  const {c,r}=cell(cx,cy); if(c<0||r<0||c>=MAPW||r>=MAPH) return; pushUndo();
+  if(mapLayer==='obj'||mapLayer==='unit'){ if(sel.kind!=='sprite'){ toast('Für diese Ebene ein Teil wählen (Deko/Gebäude/Einheit)'); return; }
+    const sz=Math.min(96,Math.max(44,sel.h)), x=c*TILE+TILE/2, y=r*TILE+TILE/2, o={file:sel.file,x,y,w:sel.w*(sz/sel.h),h:sz};
+    if(mapLayer==='unit'){ o.count=1; o.name=sel.name; units.push(o); } else objects.push(o); }
+  else { if(sel.kind!=='tile'){ toast('Für Boden ein Tile wählen'); return; } tileArr()[r][c]=sel.key; } }
+function deleteMarked(){ if(!marked.size){ toast('Erst Zellen markieren (Karte halten → markieren), dann Löschen', 3000); return; } pushUndo();
+  // Inhalt der aktiven Ebene aus den markierten Zellen entfernen (mid:7638)
+  if(mapLayer==='obj'||mapLayer==='unit'){ const arr=mapLayer==='unit'?units:objects;
+    for(let i=arr.length-1;i>=0;i--){ const c=Math.floor(arr[i].x/TILE), r=Math.floor(arr[i].y/TILE); if(marked.has(c+','+r)) arr.splice(i,1); } }
+  else { const G=tileArr(); for(const k of marked){ const [c,r]=k.split(',').map(Number); if(c>=0&&r>=0&&c<MAPW&&r<MAPH) G[r][c]=null; } }
+  marked.clear();
+}
+// ---------- Copy-Paste (mid:7636) — markieren→Kopieren→Ziel markieren→Einfügen ----------
+let clipboard=null;
+function gridOf(layer){ return layer==='over'?gover:ground; }
+function markBounds(){ let minc=1e9,minr=1e9; for(const k of marked){ const [c,r]=k.split(',').map(Number); if(c<minc)minc=c; if(r<minr)minr=r; } return {minc,minr}; }
+function copyMarked(){ if(!marked.size){ toast('Erst Zellen markieren, dann Kopieren', 3000); return; }
+  const {minc,minr}=markBounds(), cb={layer:mapLayer,tiles:[],objs:[]};
+  if(mapLayer==='obj'||mapLayer==='unit'){ const arr=mapLayer==='unit'?units:objects;
+    for(const o of arr){ const c=Math.floor(o.x/TILE), r=Math.floor(o.y/TILE); if(marked.has(c+','+r)) cb.objs.push({o:{...o}, dx:o.x-minc*TILE, dy:o.y-minr*TILE}); } }
+  else { const G=gridOf(mapLayer); for(const k of marked){ const [c,r]=k.split(',').map(Number); if(G[r]&&G[r][c]) cb.tiles.push({dc:c-minc, dr:r-minr, key:G[r][c]}); } }
+  const n=cb.tiles.length+cb.objs.length; if(!n){ toast('In der Markierung ist auf dieser Ebene nichts zum Kopieren'); return; }
+  clipboard=cb; marked.clear(); toast('📋 '+n+' kopiert — jetzt eine Ziel-Zelle markieren (halten), dann Einfügen', 4200); }
+function pasteMarked(){ if(!clipboard){ toast('Nichts kopiert'); return; } if(!marked.size){ toast('Ziel-Zelle markieren, dann Einfügen', 3000); return; }
+  const {minc,minr}=markBounds(); pushUndo();
+  if(clipboard.objs.length){ const arr=clipboard.layer==='unit'?units:objects; for(const it of clipboard.objs){ arr.push({...it.o, x:minc*TILE+it.dx, y:minr*TILE+it.dy}); } }
+  if(clipboard.tiles.length){ const G=gridOf(clipboard.layer); for(const t of clipboard.tiles){ const c=minc+t.dc, r=minr+t.dr; if(c>=0&&r>=0&&c<MAPW&&r<MAPH) G[r][c]=t.key; } }
+  marked.clear(); }
+// ---------- Start-Template: zufällige Insel-Form (mid:7636) ----------
+function generateIsland(size){ mode='map'; syncTabs(); setLayer('ground'); marked.clear();
+  const R0=(size==='S'?Math.min(7,MAPW*0.18):size==='L'?Math.min(17,MAPW*0.42):Math.min(11,MAPW*0.28));
+  const cx=MAPW/2-0.5, cy=MAPH/2-0.5, amps=[]; for(let k=0;k<4;k++) amps.push({f:2+((Math.random()*4)|0), a:Math.random()*0.30, p:Math.random()*6.2832});
+  for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ const dx=c-cx, dy=r-cy, dist=Math.hypot(dx,dy), ang=Math.atan2(dy,dx); let rad=R0; for(const w of amps) rad+=R0*w.a*Math.sin(w.f*ang+w.p); if(dist<=rad) marked.add(c+','+r); }
+  if(!marked.size){ toast('Insel zu groß für die Karte'); return; }
+  autoTerr='flat'; autoColor=0; fillMarked('auto');   // auto-tiled (saubere Ränder), kein Tile nötig
+  centerMap(); buildTools(); toast('🏝 Insel ('+size+') generiert — jetzt frei anpassen', 4000); }
+function centerMap(){ const cw=cv.clientWidth||window.innerWidth, ch=cv.clientHeight||window.innerHeight; zoom=Math.max(0.12, Math.min(cw/(MAPW*TILE), ch/(MAPH*TILE))*0.92); ox=cw/2-(MAPW*TILE/2)*zoom; oy=ch/2-(MAPH*TILE/2)*zoom; }
+function rectBounds(){ return {a:Math.min(rectSel.c0,rectSel.c1),b:Math.max(rectSel.c0,rectSel.c1),c:Math.min(rectSel.r0,rectSel.r1),d:Math.max(rectSel.r0,rectSel.r1)}; }
+function commitRect(){ if(!rectSel)return; const {a,b,c,d}=rectBounds();
+  for(let r=c;r<=d;r++)for(let cc=a;cc<=b;cc++) if(cc>=0&&r>=0&&cc<MAPW&&r<MAPH) marked.add(cc+','+r); }
+// ---------- Composite/UI ----------
+function placeFree(cx,cy){ if(!sel||sel.kind!=='sprite')return; const w=world(cx,cy); pushUndo();
+  const o={file:sel.file,x:w.x,y:w.y,scale:1,flip:false,rot:0,hidden:false,alpha:1,w:sel.w,h:sel.h}; freeList().push(o); selObj=o; buildTools(); buildLayers(); }
+function pointInObj(o,wx,wy){ let lx=wx-o.x, ly=wy-o.y; if(o.rot){ const a=-o.rot*Math.PI/180, co=Math.cos(a), si=Math.sin(a), x=lx; lx=x*co-ly*si; ly=x*si+ly*co; }
+  return Math.abs(lx)<=o.w*o.scale/2 && Math.abs(ly)<=o.h*o.scale/2; }
+function hitFree(cx,cy){ const w=world(cx,cy), L=freeList();
+  for(let i=L.length-1;i>=0;i--){ const o=L[i]; if(o.hidden)continue; if(pointInObj(o,w.x,w.y)) return o; } return null; }
+function zorder(d){ const L=freeList(), i=L.indexOf(selObj); if(i<0)return; pushUndo(); L.splice(i,1); const j=Math.max(0,Math.min(L.length, i+d)); L.splice(j,0,selObj); }
+function delObj(){ const L=freeList(), i=L.indexOf(selObj); if(i<0)return; pushUndo(); L.splice(i,1); selObj=null; buildTools(); }
+function dupObj(){ if(!selObj)return; pushUndo(); const o={...selObj,x:selObj.x+24,y:selObj.y+24}; freeList().push(o); selObj=o; buildTools(); buildLayers(); }
+function eraseFreeAt(cx,cy){ const w=world(cx,cy), L=freeList(); let any=false;
+  for(let i=L.length-1;i>=0;i--){ if(Math.hypot(L[i].x-w.x,L[i].y-w.y)<=eraseR){ if(!any){pushUndo();any=true;} if(L[i]===selObj)selObj=null; L.splice(i,1); } }
+  if(any){buildTools();buildLayers();} }
+
+// ---------- Top-Buttons ----------
+function syncTabs(){ for(const x of document.querySelectorAll('.tab')) x.classList.toggle('on', x.dataset.mode===mode); }
+for(const b of document.querySelectorAll('.tab')) b.onclick=()=>{ mode=b.dataset.mode; syncTabs();
+  tool='paint'; selObj=null; const showL=mode!=='map'&&showLayers; $('layers').classList.toggle('show',showL); buildTools(); setHint(); buildLayers(); };
+$('undo').onclick=undo; $('redo').onclick=redo; $('palToggle').onclick=()=>$('side').classList.toggle('open');
+$('menuBtn').onclick=e=>{ e.stopPropagation(); $('menu').classList.toggle('show'); };
+$('resetbars').onclick=resetGrpPos;
+$('islS').onclick=()=>{ $('menu').classList.remove('show'); generateIsland('S'); };
+$('islM').onclick=()=>{ $('menu').classList.remove('show'); generateIsland('M'); };
+$('islL').onclick=()=>{ $('menu').classList.remove('show'); generateIsland('L'); };
+$('dorftpl').onclick=()=>{ if(parts.length && !confirm('Composite leeren und Dorf-Vorlage laden?')) return; pushUndo();   // nicht mehr ohne Undo/Rueckfrage loeschen (Audit M18)
+  mode='composite'; syncTabs(); setHint(); refImg=null; parts.length=0; selObj=null;
+  const o={file:'ts/ed/dorf_wege.png',x:0,y:0,scale:0.3,flip:false,rot:0,hidden:false,alpha:1,w:1764,h:1764}; loadImg(o.file); parts.push(o); selObj=o;   // Wegenetz als skalierbares Teil (mid:6723)
+  zoom=0.7; ox=cv.clientWidth/2; oy=cv.clientHeight/2;
+  activeCat='Spiel-Gebäude'; buildCats(); buildPalette(); buildTools(); buildLayers();
+  toast('Wegenetz platziert — skalierbar mit ＋/－ (es ist ausgewählt). Dann Kategorie „🏰 Spiel-Gebäude" → Gebäude drauf. „📤 An Lucy" wenn fertig.',6500); };
+$('menu').addEventListener('click',()=>$('menu').classList.remove('show'));
+document.addEventListener('click',e=>{ if(!$('menu').contains(e.target)&&e.target!==$('menuBtn')) $('menu').classList.remove('show'); });
+$('clr').onclick=()=>{ if(!confirm('Aktuellen Modus leeren?'))return; pushUndo(); if(mode==='map'){for(const row of ground)row.fill(null);for(const row of gover)row.fill(null);objects=[];units=[];marked.clear();} else if(mode==='composite')parts=[]; else uiel=[]; selObj=null; };
+$('help').onclick=()=>alert('EDITOR FÜR ALLES\n\nKarte: Teile links wählen, Ebene (Boden/Objekte/Einheiten) + Werkzeug oben.\n⬚ Markieren = Felder einzeln/malend markieren, dann „Füllen: Tile" oder „Auto-Ecken" (setzt Rand-/Eck-Tiles auf die markierte Form).\nEinheiten: Ebene Einheiten, Einheit wählen, tippen — Anzahl im Inspector.\n\nComposite/UI: Teil wählen + tippen platziert. ▭ Auswählen: tippen packt ein Teil, ziehen bewegt; dann ↺↻ drehen, ＋－ skalieren, ↔ spiegeln, ⬆⬇ Reihenfolge, ⧉ kopieren, 🗑 löschen.\n🧽 Radierer: über Teile wischen löscht sie (Größe mit ＋/－).\n🗂 Ebenen: Liste aller Teile — auswählen, ein-/ausblenden, sortieren, löschen.\n📷 Vorlage: ein Foto als blasse Vorlage laden und 1:1 nachbauen (z.B. dein Holzfäller-Bild).\n\nWerkzeug-Leisten: am Gruppen-Titel (⠿) ziehen, um sie frei zu platzieren. Zurück: ⋯-Menü → „Werkzeug-Leisten zurücksetzen".\n\nExport/Senden: 📤 An Lucy schickt Bild+Daten direkt an mich. Lokal: ⋯-Menü → PNG / Daten. JSON mit Position/Größe/Drehung. Alles lokal.');
+document.addEventListener('keydown',e=>{ if(e.ctrlKey&&e.key==='z'){undo();} else if(e.ctrlKey&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))){redo();} });
+$('insp').addEventListener('input',()=>{}); // (Inspector unten)
+// Inspector für Einheiten-Anzahl (Tap auf Einheit im Einheiten-Layer)
+function unitCountAt(cx,cy){ if(!(mode==='map'&&mapLayer==='unit'))return false; const w=world(cx,cy); let u=null,bd=1e9; for(const x of units){const d=Math.hypot(x.x-w.x,x.y-w.y); if(d<bd){bd=d;u=x;}} if(u&&bd<TILE){ const n=prompt('Anzahl dieser Einheit:',u.count||1); if(n!=null){pushUndo();u.count=Math.max(1,parseInt(n)||1);buildLayers();} return true; } return false; }
+cv.addEventListener('dblclick',e=>{ unitCountAt(e.clientX,e.clientY); });   // Desktop: Doppelklick. Touch: Long-Press (in pointerdown) (Audit H3)
+
+// ---------- Toast / Overlay ----------
+function toast(msg,ms){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), ms||2800); }
+function dataURLtoBlob(durl){ const i=durl.indexOf(','), head=durl.slice(0,i), mime=(head.match(/:(.*?);/)||[])[1]||'image/png', bin=atob(durl.slice(i+1)), u8=new Uint8Array(bin.length); for(let j=0;j<bin.length;j++)u8[j]=bin.charCodeAt(j); return new Blob([u8],{type:mime}); }
+$('ovlclose').onclick=()=>$('ovl').classList.remove('show');
+function showOverlay(msg, node, extraBtns){ $('ovlmsg').textContent=msg; const body=$('ovlbody'); body.innerHTML=''; body.appendChild(node);
+  const btns=$('ovlbtns'); [...btns.querySelectorAll('.xb')].forEach(b=>b.remove()); (extraBtns||[]).forEach(b=>{b.classList.add('xb');btns.insertBefore(b,$('ovlclose'));}); $('ovl').classList.add('show'); }
+function showImageOverlay(blob){ const img=document.createElement('img'); img.src=URL.createObjectURL(blob); showOverlay('Bild lange drücken → „Sichern" (iPhone). Oder schon im Download-Ordner.', img); }
+function showTextOverlay(text){ const ta=document.createElement('textarea'); ta.value=text; ta.readOnly=true; const cp=document.createElement('button'); cp.textContent='📋 Kopieren'; cp.onclick=()=>{ta.select();try{document.execCommand('copy');}catch(e){} navigator.clipboard&&navigator.clipboard.writeText(text).catch(()=>{}); toast('Kopiert');}; showOverlay('Daten markieren + kopieren (oder Kopieren-Knopf):', ta, [cp]); }
+
+// ---------- Speichern: Share-Sheet (iOS) → Download → Overlay-Notnagel ----------
+async function saveFile(filename, blob){
+  try{ const file=new File([blob],filename,{type:blob.type});
+    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:filename}); return; } }
+  catch(e){ if(e&&e.name==='AbortError') return; }
+  try{ const u=URL.createObjectURL(blob),a=document.createElement('a'); a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove(); setTimeout(()=>URL.revokeObjectURL(u),4000); toast('Gespeichert: '+filename);
+    if(('ontouchstart'in window)){ if(blob.type.startsWith('image/'))showImageOverlay(blob); else showTextOverlay(blob._txt||''); } return; }
+  catch(e){ if(blob.type.startsWith('image/'))showImageOverlay(blob); else showTextOverlay(blob._txt||''); }
+}
+
+// ---------- Daten/Bild bauen ----------
+function currentJSON(){ let data;
+  if(mode==='map') data={mode:'map',tile:TILE,w:MAPW,h:MAPH,ground,gover,objects,units};
+  else if(mode==='composite') data={mode:'composite',parts:parts.map(p=>({asset:p.file,x:Math.round(p.x),y:Math.round(p.y),scale:+p.scale.toFixed(3),flip:p.flip,rot:Math.round(p.rot||0),w:p.w,h:p.h,hidden:!!p.hidden}))};   // versteckte Teile behalten (JSON ist Speicherformat, nicht nur Render) (Audit M13)
+  else data={mode:'ui',elements:uiel.map(p=>({asset:p.file,x:Math.round(p.x),y:Math.round(p.y),scale:+p.scale.toFixed(3),flip:p.flip,rot:Math.round(p.rot||0),w:p.w,h:p.h,hidden:!!p.hidden}))};
+  return JSON.stringify(data,null,1); }
+function buildMapCanvas(){ let minc=MAPW,minr=MAPH,maxc=0,maxr=0,any=false;
+  for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++) if(ground[r][c]||gover[r][c]){any=true;minc=Math.min(minc,c);minr=Math.min(minr,r);maxc=Math.max(maxc,c);maxr=Math.max(maxr,r);}
+  for(const o of [...objects,...units]){any=true;   // Crop aus dem echten Zeichen-Rechteck (x-w/2..x+w/2, y-h..y), nicht nur Fuss-Tile → keine abgeschnittenen hohen/breiten Sprites (Audit M12)
+    const oc0=Math.floor((o.x-o.w/2)/TILE),oc1=Math.floor((o.x+o.w/2)/TILE),or0=Math.floor((o.y-o.h)/TILE),or1=Math.floor((o.y-1)/TILE);
+    minc=Math.min(minc,oc0);maxc=Math.max(maxc,oc1);minr=Math.min(minr,or0);maxr=Math.max(maxr,or1);}
+  if(!any)return null; minc=Math.max(0,minc-1);minr=Math.max(0,minr-1);maxc=Math.min(MAPW-1,maxc+1);maxr=Math.min(MAPH-1,maxr+1);
+  const w=(maxc-minc+1)*TILE,h=(maxr-minr+1)*TILE,oc=document.createElement('canvas');oc.width=w;oc.height=h;const g=oc.getContext('2d');g.imageSmoothingEnabled=false;
+  g.fillStyle='#2f7d8c';g.fillRect(0,0,w,h);
+  const dt=(k,c,r)=>{const p=k.split('_');const im=TMS[+p[0].slice(1)]||TMS[0];if(im&&im.naturalWidth)g.drawImage(im,+p[1]*TILE,+p[2]*TILE,TILE,TILE,(c-minc)*TILE,(r-minr)*TILE,TILE,TILE);};
+  for(let r=minr;r<=maxr;r++)for(let c=minc;c<=maxc;c++){if(ground[r][c])dt(ground[r][c],c,r);}
+  for(let r=minr;r<=maxr;r++)for(let c=minc;c<=maxc;c++){if(gover[r][c])dt(gover[r][c],c,r);}
+  for(const o of objects){const im=IMG[o.file];if(im&&im.complete)g.drawImage(im,o.x-minc*TILE-o.w/2,o.y-minr*TILE-o.h,o.w,o.h);}
+  for(const u of units){const im=IMG[u.file];if(im&&im.complete)g.drawImage(im,u.x-minc*TILE-u.w/2,u.y-minr*TILE-u.h,u.w,u.h);}
+  return oc; }
+function buildFreeCanvas(){ const L=freeList().filter(o=>!o.hidden); if(!L.length)return null;
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  for(const o of L){const bb=objAABB(o);minx=Math.min(minx,bb.minx);miny=Math.min(miny,bb.miny);maxx=Math.max(maxx,bb.maxx);maxy=Math.max(maxy,bb.maxy);}
+  const pad=8,w=Math.ceil(maxx-minx)+pad*2,h=Math.ceil(maxy-miny)+pad*2,oc=document.createElement('canvas');oc.width=w;oc.height=h;const g=oc.getContext('2d');g.imageSmoothingEnabled=false;
+  for(const o of L){ drawOne(g,o,minx-pad,miny-pad); } return oc; }
+function currentCanvas(){ return mode==='map'?buildMapCanvas():buildFreeCanvas(); }
+$('exJson').onclick=()=>{ const txt=currentJSON(); const blob=new Blob([txt],{type:'application/json'}); blob._txt=txt; saveFile(mode+'.json', blob); };
+$('exPng').onclick=()=>{ const oc=currentCanvas(); if(!oc){toast(mode==='map'?'Karte ist leer':'Nichts da');return;} saveFile(mode+'.png', dataURLtoBlob(oc.toDataURL('image/png'))); };
+
+// ---------- An Lucy senden (Dashboard-Inbox) ----------
+// Bau-Version (mid:7610): KEIN Senden an Lucy — nur lokaler Export (PNG + JSON) zum Download. ZIP-Bündelung folgt (Schritt 3).
+// Minimaler Store-ZIP (kein Lib): PNG + JSON in EINE .zip (mid:7610)
+const _crcT=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function _crc32(b){ let c=0xFFFFFFFF; for(let i=0;i<b.length;i++) c=_crcT[(c^b[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function makeZip(files){ const enc=new TextEncoder(), u16=n=>[n&255,(n>>8)&255], u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  const parts=[], cen=[]; let off=0;
+  for(const f of files){ const nm=enc.encode(f.name), crc=_crc32(f.data), sz=f.data.length;
+    const lh=new Uint8Array([0x50,0x4b,3,4, ...u16(20),...u16(0),...u16(0),...u16(0),...u16(0), ...u32(crc),...u32(sz),...u32(sz), ...u16(nm.length),...u16(0)]);
+    parts.push(lh,nm,f.data);
+    cen.push(new Uint8Array([0x50,0x4b,1,2, ...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0), ...u32(crc),...u32(sz),...u32(sz), ...u16(nm.length),...u16(0),...u16(0),...u16(0),...u16(0),...u32(0),...u32(off)]), nm);
+    off += lh.length+nm.length+sz; }
+  let cs=0; for(const c of cen) cs+=c.length;
+  const eo=new Uint8Array([0x50,0x4b,5,6, ...u16(0),...u16(0), ...u16(files.length),...u16(files.length), ...u32(cs),...u32(off), ...u16(0)]);
+  return new Blob([...parts,...cen,eo],{type:'application/zip'}); }
+function dataURLtoBytes(durl){ const bin=atob(durl.slice(durl.indexOf(',')+1)), u8=new Uint8Array(bin.length); for(let j=0;j<bin.length;j++)u8[j]=bin.charCodeAt(j); return u8; }
+$('export').onclick=()=>{ const oc=currentCanvas(); if(!oc){ toast(mode==='map'?'Karte ist leer':'Nichts zum Exportieren'); return; }
+  const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-'), base=(mode==='map'?'karte':'teil')+'_'+stamp;
+  // SYNCHRON bauen (kein toBlob-await → User-Geste bleibt für navigator.share auf iOS erhalten), dann iOS-sicher speichern (mid:7649)
+  const png=dataURLtoBytes(oc.toDataURL('image/png')), json=new TextEncoder().encode(currentJSON());
+  const zip=makeZip([{name:base+'.png',data:png},{name:base+'.json',data:json}]);
+  saveFile(base+'.zip', zip);
+  toast('📦 '+base+'.zip — über „Teilen/Sichern" in Dateien legen, dann an Steffen schicken', 5500); };
+$('refFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const im=new Image(); im.onload=()=>{ refImg=im; buildTools(); }; im.src=URL.createObjectURL(f); e.target.value=''; };
+$('imp').onclick=()=>$('file').click();
+$('file').onchange=e=>{ const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);pushUndo();
+  if(d.mode==='map'){for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ground[r][c]=(d.ground[r]&&d.ground[r][c])||null;gover[r][c]=(d.gover&&d.gover[r]&&d.gover[r][c])||null;}
+    const mig=a=>(a||[]).map(o=>o.x==null&&o.cx!=null?{...o,x:o.cx*TILE+TILE/2,y:o.cy*TILE+TILE}:o); objects=mig(d.objects);units=mig(d.units);}
+  else if(d.mode==='composite'){parts=(d.parts||[]).map(p=>({file:p.asset,x:p.x,y:p.y,scale:p.scale||1,flip:!!p.flip,rot:p.rot||0,hidden:!!p.hidden,alpha:1,w:p.w||64,h:p.h||64}));}
+  else if(d.mode==='ui'){uiel=(d.elements||[]).map(p=>({file:p.asset,x:p.x,y:p.y,scale:p.scale||1,flip:!!p.flip,rot:p.rot||0,hidden:!!p.hidden,alpha:1,w:p.w||64,h:p.h||64}));}
+  [...objects,...units,...parts,...uiel].forEach(o=>{ if(o&&o.file) loadImg(o.file); });   // importierte Sprites laden, sonst bleiben sie unsichtbar (Audit M17); hidden-Flag wiederhergestellt (M13)
+  buildLayers();
+}catch(err){alert('Konnte nicht laden');}};rd.readAsText(f); };
+
+window.ED={get sel(){return sel}, get ground(){return ground}, get gover(){return gover}, get objects(){return objects}, get units(){return units}, get parts(){return parts}, get uiel(){return uiel}, get marked(){return marked},
+  setMode:m=>{mode=m;syncTabs();buildTools();setHint();}, setTool:t=>{tool=t;buildTools();}, setLayer:l=>{mapLayer=l;buildTools();}, pickFirst:cat=>{activeCat=cat;buildPalette();const a=(MANIFEST[cat]||[])[0];if(a)sel={kind:'sprite',file:a.file,w:a.w,h:a.h,name:a.name};}, pickTile:(c,r,s)=>{s=s||0;autoColor=s;sel={kind:'tile',key:'t'+s+'_'+c+'_'+r,s};}, setView:(z,x,y)=>{zoom=z;ox=x;oy=y;}, fillMarked, autoTerrSet:t=>{autoTerr=t;}, autoColorSet:s=>{autoColor=s;}, manifest:()=>MANIFEST, manifestOk:()=>MANIFEST_OK };
+boot();
+</script>
+</body></html>
