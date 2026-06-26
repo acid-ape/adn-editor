@@ -565,7 +565,7 @@ $('export').onclick=()=>{ const oc=currentCanvas(); if(!oc){ toast(mode==='map'?
   const png=dataURLtoBytes(oc.toDataURL('image/png')), json=new TextEncoder().encode(currentJSON());
   const zip=makeZip([{name:base+'.png',data:png},{name:base+'.json',data:json}]);
   saveFile(base+'.zip', zip);
-  toast('📦 '+base+'.zip — über „Teilen/Sichern" in Dateien legen, dann an Steffen schicken', 5500); };
+  toast('📦 '+base+'.zip — über „Teilen/Sichern" in Dateien legen, dann verschicken', 5500); };
 $('refFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const im=new Image(); im.onload=()=>{ refImg=im; buildTools(); }; im.src=URL.createObjectURL(f); e.target.value=''; };
 $('imp').onclick=()=>$('file').click();
 $('file').onchange=e=>{ const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);pushUndo();
