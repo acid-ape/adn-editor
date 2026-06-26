@@ -355,7 +355,7 @@ function endP(e){ ptrs.delete(e.pointerId);
   if(down&&down._holdT){ clearTimeout(down._holdT); down._holdT=null; }   // Hold-Timer beenden
   if(down&&e.pointerId===down.id){
     if(dragObj){ if(down.moved)pushUndo(); dragObj=null; }
-    else if(mode==='map' && !down.moved){ if(markMode){ const {c,r}=cell(down.sx,down.sy); if(c>=0&&r>=0&&c<MAPW&&r<MAPH){ const k=c+','+r; marked.has(k)?marked.delete(k):marked.add(k); } } else { placeSingle(down.sx,down.sy); } }   // Markier-Modus: tippen toggelt Zelle · sonst: EIN Tipp setzt EIN Teil (mid:7645)
+    else if(mode==='map' && !down.moved){ if(markMode){ const {c,r}=cell(down.sx,down.sy); if(c>=0&&r>=0&&c<MAPW&&r<MAPH){ const k=c+','+r; marked.has(k)?marked.delete(k):marked.add(k); } buildTools(); } else { placeSingle(down.sx,down.sy); } }   // Markier-Modus: tippen toggelt Zelle + Toolbar refresh (Count/Einfügen) · sonst: EIN Tipp setzt EIN Teil (mid:7645/7671)
     else if(!down.moved){ tap(down.sx,down.sy); }   // Teil-Modus: tippen platziert
     down=null;
   }
@@ -418,12 +418,12 @@ function copyMarked(){ if(!marked.size){ toast('Erst Zellen markieren, dann Kopi
     for(const o of arr){ const c=Math.floor(o.x/TILE), r=Math.floor(o.y/TILE); if(marked.has(c+','+r)) cb.objs.push({o:{...o}, dx:o.x-minc*TILE, dy:o.y-minr*TILE}); } }
   else { const G=gridOf(mapLayer); for(const k of marked){ const [c,r]=k.split(',').map(Number); if(G[r]&&G[r][c]) cb.tiles.push({dc:c-minc, dr:r-minr, key:G[r][c]}); } }
   const n=cb.tiles.length+cb.objs.length; if(!n){ toast('In der Markierung ist auf dieser Ebene nichts zum Kopieren'); return; }
-  clipboard=cb; marked.clear(); toast('📋 '+n+' kopiert — jetzt eine Ziel-Zelle markieren (halten), dann Einfügen', 4200); }
+  clipboard=cb; marked.clear(); buildTools(); toast('📋 '+n+' kopiert — jetzt eine Ziel-Zelle markieren (halten), dann „📌 Einfügen"', 4500); }
 function pasteMarked(){ if(!clipboard){ toast('Nichts kopiert'); return; } if(!marked.size){ toast('Ziel-Zelle markieren, dann Einfügen', 3000); return; }
   const {minc,minr}=markBounds(); pushUndo();
   if(clipboard.objs.length){ const arr=clipboard.layer==='unit'?units:objects; for(const it of clipboard.objs){ arr.push({...it.o, x:minc*TILE+it.dx, y:minr*TILE+it.dy}); } }
   if(clipboard.tiles.length){ const G=gridOf(clipboard.layer); for(const t of clipboard.tiles){ const c=minc+t.dc, r=minr+t.dr; if(c>=0&&r>=0&&c<MAPW&&r<MAPH) G[r][c]=t.key; } }
-  marked.clear(); }
+  marked.clear(); buildTools(); toast('📌 Eingefügt', 2000); }
 // ---------- Start-Template: zufällige Insel-Form (mid:7636) ----------
 function generateIsland(size){ mode='map'; syncTabs(); setLayer('ground'); marked.clear();
   const R0=(size==='S'?Math.min(7,MAPW*0.18):size==='L'?Math.min(17,MAPW*0.42):Math.min(11,MAPW*0.28));
