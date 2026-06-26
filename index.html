@@ -417,7 +417,7 @@ function fillMarked(kind){ if(!marked.size){ toast('Erst Zellen markieren (Karte
 function placeSingle(cx,cy){ if(!sel){ toast('Erst ein Teil/Tile aus der Palette wählen (🧩 oben links)', 2800); return; }   // EIN Tipp setzt EIN Teil (mid:7645)
   const {c,r}=cell(cx,cy); if(c<0||r<0||c>=MAPW||r>=MAPH) return; pushUndo();
   if(mapLayer==='obj'||mapLayer==='unit'){ if(sel.kind!=='sprite'){ toast('Für diese Ebene ein Teil wählen (Deko/Gebäude/Einheit)'); return; }
-    const sz=Math.min(96,Math.max(44,sel.h)), x=c*TILE+TILE/2, y=r*TILE+TILE/2, o={file:sel.file,x,y,w:sel.w*(sz/sel.h),h:sz};
+    const sz=Math.min(96,Math.max(44,sel.h)), w0=world(cx,cy), x=w0.x, y=w0.y, o={file:sel.file,x,y,w:sel.w*(sz/sel.h),h:sz};   // frei tippen: Deko landet exakt am Tipp, kein Zell-Snap (mid:7731)
     if(mapLayer==='unit'){ o.count=1; o.name=sel.name; units.push(o); } else objects.push(o); }
   else { if(sel.kind!=='tile'){ toast('Für Boden ein Tile wählen'); return; } tileArr()[r][c]=sel.key; } }
 function deleteMarked(){ if(!marked.size){ toast('Erst Zellen markieren (Karte halten → markieren), dann Löschen', 3000); return; } pushUndo();
