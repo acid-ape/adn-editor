@@ -294,7 +294,7 @@ function setLayer(l){ mapLayer=l; buildTools(); }
 function setTool(t){ tool=t; buildTools(); }
 function setHint(){ $('hint').textContent = mode==='map'
   ? (pipMode ? '🎨 Pipette aktiv — eine gesetzte Kachel antippen, um ihren Farbton in die Regler zu übernehmen'
-  : 'Tippen=setzen · halten+ziehen=verschieben · 2-Finger/Rad=zoom · ⬚ Markieren=Zellen malen · ▭ Rechteck=Bereich aufziehen → dann „Füllen/Auto-Ecken"')
+  : 'Tippen/Klick=setzen · ziehen=verschieben · Rad/2-Finger=zoom · Markieren: Handy=halten, Desktop=Shift+Ziehen → „Setzen" · Desktop-Tasten: WASD schwenken · R drehen · Entf löschen · ESC')
   : 'Teil wählen + tippen=platzieren · ▭ Auswählen: tippen=packen, ziehen=bewegen → ↻drehen ＋－ ⧉Kopie · 🧽 Radierer (Größe ＋/－) · 🗂 Ebenen · 📷 Vorlage zum Nachbauen'; }
 
 // ---------- Render ----------
@@ -365,7 +365,8 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('pointerdown',e=>{ cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(ptrs.size>=2){ down=null; const p=[...ptrs.values()]; pinchD=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y); pinchM={x:(p[0].x+p[1].x)/2,y:(p[0].y+p[1].y)/2}; return; }
   down={id:e.pointerId,x:e.clientX,y:e.clientY,sx:e.clientX,sy:e.clientY,moved:false}; didChange=false;
-  if(mode==='map' && !markMode && !pipMode){ down._holdT=setTimeout(()=>{ if(down && !down.moved){ setMark(true); if(navigator.vibrate)navigator.vibrate(25); toast('Markier-Modus — Zellen antippen/ziehen, dann „Setzen"', 2200); } }, 320); }   // HALTEN → Markier-Modus (mid:7630)
+  if(e.shiftKey && mode==='map' && !markMode && !pipMode){ setMark(true); }   // Desktop: Shift+Klick = sofort markieren (mid:7804)
+  if(mode==='map' && !markMode && !pipMode && !e.shiftKey){ down._holdT=setTimeout(()=>{ if(down && !down.moved){ setMark(true); if(navigator.vibrate)navigator.vibrate(25); toast('Markier-Modus — Zellen antippen/ziehen, dann „Setzen"', 2200); } }, 320); }   // HALTEN → Markier-Modus (mid:7630)
   if(mode!=='map'&&tool==='select'){ const o=hitFree(e.clientX,e.clientY); selObj=o; buildTools(); buildLayers(); if(o){ const w=world(e.clientX,e.clientY); dragObj={o,dx:o.x-w.x,dy:o.y-w.y}; } }
   if(mode!=='map'&&tool==='erase'){ lastEraseXY=world(e.clientX,e.clientY); }
 });
@@ -606,6 +607,34 @@ async function loadTemplates(){ try{ const idx=await (await fetch('ts/ed/templat
     try{ const d=await (await fetch('ts/ed/templates/'+t.file+'?v=1')).json(); applyTemplate(d); toast('Vorlage „'+t.label+'" geladen — als Startpunkt zum Weiterbauen', 2600); }
     catch(e){ toast('Vorlage konnte nicht geladen werden', 2600); } }; wrap.appendChild(b); } }catch(e){} }
 loadTemplates();
+
+// ---------- Desktop-Tastatur (mid:7804): WASD/Pfeile pannen, R drehen, Entf löschen, Strg+C/V, ESC ----------
+const _keys=new Set();
+function _typing(){ const a=document.activeElement; return a && (a.tagName==='INPUT'||a.tagName==='TEXTAREA'); }
+addEventListener('keydown',e=>{
+  if(_typing()) return;
+  const k=e.key.toLowerCase();
+  if((e.ctrlKey||e.metaKey) && k==='c'){ if(marked.size){ copyMarked(); e.preventDefault(); } return; }
+  if((e.ctrlKey||e.metaKey) && k==='v'){ if(clipboard){ pasteMarked(); setMark(false); e.preventDefault(); } return; }
+  if(k==='escape'){ marked.clear(); setMark(false); e.preventDefault(); return; }
+  if(k==='r'){ if(sel&&sel.kind==='tile'&&(mapLayer==='ground'||mapLayer==='over')){ tileRot=(tileRot+1)%4; buildTools(); draw(); e.preventDefault(); } return; }
+  if(k==='delete'||k==='backspace'){ if(marked.size){ deleteMarked(); setMark(false); e.preventDefault(); } return; }
+  if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)){ _keys.add(k); e.preventDefault(); }
+});
+addEventListener('keyup',e=>{ _keys.delete(e.key.toLowerCase()); });
+addEventListener('blur',()=>_keys.clear());
+function _kbPan(){
+  if(_keys.size && mode==='map'){
+    const sp=26; let dx=0,dy=0;
+    if(_keys.has('w')||_keys.has('arrowup')) dy+=sp;
+    if(_keys.has('s')||_keys.has('arrowdown')) dy-=sp;
+    if(_keys.has('a')||_keys.has('arrowleft')) dx+=sp;
+    if(_keys.has('d')||_keys.has('arrowright')) dx-=sp;
+    if(dx||dy){ ox+=dx; oy+=dy; draw(); }
+  }
+  requestAnimationFrame(_kbPan);
+}
+requestAnimationFrame(_kbPan);
 
 window.ED={get sel(){return sel}, get ground(){return ground}, get gover(){return gover}, get objects(){return objects}, get units(){return units}, get parts(){return parts}, get uiel(){return uiel}, get marked(){return marked},
   setMode:m=>{mode=m;syncTabs();buildTools();setHint();}, setTool:t=>{tool=t;buildTools();}, setLayer:l=>{mapLayer=l;buildTools();}, pickFirst:cat=>{activeCat=cat;buildPalette();const a=(MANIFEST[cat]||[])[0];if(a)sel={kind:'sprite',file:a.file,w:a.w,h:a.h,name:a.name};}, pickTile:(c,r,s)=>{s=s||0;autoColor=s;sel={kind:'tile',key:'t'+s+'_'+c+'_'+r,s};}, setView:(z,x,y)=>{zoom=z;ox=x;oy=y;}, fillMarked, autoTerrSet:t=>{autoTerr=t;}, autoColorSet:s=>{autoColor=s;}, manifest:()=>MANIFEST, manifestOk:()=>MANIFEST_OK };
