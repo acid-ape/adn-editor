@@ -101,6 +101,7 @@
     <button id="imp">📂 Daten laden</button>
     <button id="dorftpl">🏘 Dorf-Vorlage (Rasen-Fläche)</button>
     <div style="display:flex;gap:5px"><button id="islS" style="flex:1">🏝 Insel klein</button><button id="islM" style="flex:1">mittel</button><button id="islL" style="flex:1">groß</button></div>
+    <div id="tplWrap" style="display:flex;flex-direction:column;gap:6px"></div>
     <button id="clr">🗑️ Aktuellen Modus leeren</button>
     <button id="resetbars">↺ Werkzeug-Leisten zurücksetzen</button>
     <button id="help">❓ Hilfe / Anleitung</button>
@@ -576,14 +577,25 @@ $('export').onclick=()=>{ const oc=currentCanvas(); if(!oc){ toast(mode==='map'?
 $('refFile').onchange=e=>{ const f=e.target.files[0]; if(!f)return; const im=new Image(); im.onload=()=>{ refImg=im; buildTools(); }; im.src=URL.createObjectURL(f); e.target.value=''; };
 $('imp').onclick=()=>$('file').click();
 $('file').onchange=e=>{ const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);pushUndo();
-  if(d.mode==='map'){ if(Array.isArray(d.tileColors)&&d.tileColors.length){ tileColors=d.tileColors; tmCache={}; }   // Farb-Index laden (mid:7648)
-    for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ground[r][c]=(d.ground[r]&&d.ground[r][c])||null;gover[r][c]=(d.gover&&d.gover[r]&&d.gover[r][c])||null;}
-    const mig=a=>(a||[]).map(o=>o.x==null&&o.cx!=null?{...o,x:o.cx*TILE+TILE/2,y:o.cy*TILE+TILE}:o); objects=mig(d.objects);units=mig(d.units);}
+  if(d.mode==='map'){ loadMapData(d); }
   else if(d.mode==='composite'){parts=(d.parts||[]).map(p=>({file:p.asset,x:p.x,y:p.y,scale:p.scale||1,flip:!!p.flip,rot:p.rot||0,hidden:!!p.hidden,alpha:1,w:p.w||64,h:p.h||64}));}
   else if(d.mode==='ui'){uiel=(d.elements||[]).map(p=>({file:p.asset,x:p.x,y:p.y,scale:p.scale||1,flip:!!p.flip,rot:p.rot||0,hidden:!!p.hidden,alpha:1,w:p.w||64,h:p.h||64}));}
   [...objects,...units,...parts,...uiel].forEach(o=>{ if(o&&o.file) loadImg(o.file); });   // importierte Sprites laden, sonst bleiben sie unsichtbar (Audit M17); hidden-Flag wiederhergestellt (M13)
   buildLayers();
 }catch(err){alert('Konnte nicht laden');}};rd.readAsText(f); };
+
+// ---------- Vorlagen (eingebaute Teile, mid:7761) ----------
+function loadMapData(d){ if(Array.isArray(d.tileColors)&&d.tileColors.length){ tileColors=d.tileColors; tmCache={}; }
+  for(let r=0;r<MAPH;r++)for(let c=0;c<MAPW;c++){ ground[r][c]=(d.ground[r]&&d.ground[r][c])||null; gover[r][c]=(d.gover&&d.gover[r]&&d.gover[r][c])||null; }
+  const mig=a=>(a||[]).map(o=>o.x==null&&o.cx!=null?{...o,x:o.cx*TILE+TILE/2,y:o.cy*TILE+TILE}:o); objects=mig(d.objects); units=mig(d.units); }
+function applyTemplate(d){ if(!d||d.mode!=='map') return; pushUndo(); mode='map'; syncTabs(); loadMapData(d);
+  [...objects,...units].forEach(o=>{ if(o&&o.file) loadImg(o.file); }); buildTools(); buildLayers(); setHint(); centerMap(); draw(); }
+async function loadTemplates(){ try{ const idx=await (await fetch('ts/ed/templates/index.json?v=1')).json(); if(!Array.isArray(idx)||!idx.length) return;
+  const wrap=$('tplWrap'); const hdr=document.createElement('div'); hdr.textContent='🧩 Meine Vorlagen'; hdr.style.cssText='font-size:11px;color:#7f93ad;margin:4px 2px -2px'; wrap.appendChild(hdr);
+  for(const t of idx){ const b=document.createElement('button'); b.textContent='   '+t.label; b.onclick=async()=>{ $('menu').classList.remove('show');
+    try{ const d=await (await fetch('ts/ed/templates/'+t.file+'?v=1')).json(); applyTemplate(d); toast('Vorlage „'+t.label+'" geladen — als Startpunkt zum Weiterbauen', 2600); }
+    catch(e){ toast('Vorlage konnte nicht geladen werden', 2600); } }; wrap.appendChild(b); } }catch(e){} }
+loadTemplates();
 
 window.ED={get sel(){return sel}, get ground(){return ground}, get gover(){return gover}, get objects(){return objects}, get units(){return units}, get parts(){return parts}, get uiel(){return uiel}, get marked(){return marked},
   setMode:m=>{mode=m;syncTabs();buildTools();setHint();}, setTool:t=>{tool=t;buildTools();}, setLayer:l=>{mapLayer=l;buildTools();}, pickFirst:cat=>{activeCat=cat;buildPalette();const a=(MANIFEST[cat]||[])[0];if(a)sel={kind:'sprite',file:a.file,w:a.w,h:a.h,name:a.name};}, pickTile:(c,r,s)=>{s=s||0;autoColor=s;sel={kind:'tile',key:'t'+s+'_'+c+'_'+r,s};}, setView:(z,x,y)=>{zoom=z;ox=x;oy=y;}, fillMarked, autoTerrSet:t=>{autoTerr=t;}, autoColorSet:s=>{autoColor=s;}, manifest:()=>MANIFEST, manifestOk:()=>MANIFEST_OK };
